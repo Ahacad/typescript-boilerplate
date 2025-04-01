@@ -51,6 +51,7 @@ async function setup() {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
   // Ask which features to install
+  const setupPrettier = await askQuestion('Setup Prettier code formatting? (Y/n): ');
   const setupHusky = await askQuestion('Setup Husky pre-commit hooks? (Y/n): ');
   const setupVersioning = await askQuestion('Setup conventional version bumping? (Y/n): ');
   const setupGithubActions = await askQuestion('Setup GitHub Actions workflows? (Y/n): ');
@@ -66,7 +67,7 @@ async function setup() {
       (file.src.includes('version') && setupVersioning.toLowerCase() !== 'n') ||
       (file.src.includes('commit') && setupHusky.toLowerCase() !== 'n') ||
       (file.src.includes('extract-latest-release') && setupVersioning.toLowerCase() !== 'n') ||
-      (file.src.includes('prettier') && setupHusky.toLowerCase() !== 'n')
+      (file.src.includes('prettier') && setupPrettier.toLowerCase() !== 'n')
     ) {
       const srcPath = path.join(SOURCE_DIR, file.src);
       const destPath = path.join(process.cwd(), file.dest);
@@ -83,23 +84,12 @@ async function setup() {
     }
   }
 
-  // Setup Husky
-  if (setupHusky.toLowerCase() !== 'n') {
-    // Add husky to devDependencies if not already present
-    if (!packageJson.devDependencies?.husky) {
-      console.log('Installing husky...');
-      execSync(
-        'npm install --save-dev husky @commitlint/cli @commitlint/config-conventional prettier',
-        { stdio: 'inherit' }
-      );
-    }
-
-    // Add prepare script if not present
-    if (!packageJson.scripts?.prepare) {
-      packageJson.scripts = packageJson.scripts || {};
-      packageJson.scripts.prepare = 'husky';
-      fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
-      console.log('Added prepare script to package.json');
+  // Setup Prettier
+  if (setupPrettier.toLowerCase() !== 'n') {
+    // Add prettier to devDependencies if not already present
+    if (!packageJson.devDependencies?.prettier) {
+      console.log('Installing prettier...');
+      execSync('npm install --save-dev prettier', { stdio: 'inherit' });
     }
 
     // Add format script if not present
@@ -108,6 +98,25 @@ async function setup() {
       packageJson.scripts.format = 'prettier --write .';
       fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
       console.log('Added format script to package.json');
+    }
+  }
+
+  // Setup Husky
+  if (setupHusky.toLowerCase() !== 'n') {
+    // Add husky to devDependencies if not already present
+    if (!packageJson.devDependencies?.husky) {
+      console.log('Installing husky and commitlint...');
+      execSync('npm install --save-dev husky @commitlint/cli @commitlint/config-conventional', {
+        stdio: 'inherit',
+      });
+    }
+
+    // Add prepare script if not present
+    if (!packageJson.scripts?.prepare) {
+      packageJson.scripts = packageJson.scripts || {};
+      packageJson.scripts.prepare = 'husky';
+      fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
+      console.log('Added prepare script to package.json');
     }
 
     // Set up husky
@@ -124,16 +133,35 @@ async function setup() {
 
   // Setup versioning
   if (setupVersioning.toLowerCase() !== 'n') {
+    // Copy release.js script
+    const srcReleasePath = path.join(SOURCE_DIR, 'scripts', 'release.js');
+    const destReleasePath = path.join(process.cwd(), 'scripts', 'release.js');
+    fs.copyFileSync(srcReleasePath, destReleasePath);
+    fs.chmodSync(destReleasePath, '755'); // Make executable
+    console.log('Copied release.js script');
+
     // Add standard-version to devDependencies if not already present
     if (!packageJson.devDependencies?.['standard-version']) {
       console.log('Installing standard-version...');
       execSync('npm install --save-dev standard-version', { stdio: 'inherit' });
     }
 
-    // Add release script if not present
+    // Add release scripts if not present
     packageJson.scripts = packageJson.scripts || {};
     if (!packageJson.scripts.release) {
-      packageJson.scripts.release = 'standard-version';
+      packageJson.scripts.release = 'node scripts/release.js';
+    }
+
+    if (!packageJson.scripts['release:patch']) {
+      packageJson.scripts['release:patch'] = 'standard-version --release-as patch';
+    }
+
+    if (!packageJson.scripts['release:minor']) {
+      packageJson.scripts['release:minor'] = 'standard-version --release-as minor';
+    }
+
+    if (!packageJson.scripts['release:major']) {
+      packageJson.scripts['release:major'] = 'standard-version --release-as major';
     }
 
     // Add publish:github script if not present
@@ -169,8 +197,11 @@ async function setup() {
   }
 
   console.log('\nSetup complete! The following features were installed:');
+  if (setupPrettier.toLowerCase() !== 'n') {
+    console.log('- Prettier for code formatting');
+  }
   if (setupHusky.toLowerCase() !== 'n') {
-    console.log('- Husky pre-commit hooks for code formatting and commit message linting');
+    console.log('- Husky pre-commit hooks for commit message linting');
   }
   if (setupVersioning.toLowerCase() !== 'n') {
     console.log('- Conventional version bumping with standard-version');
