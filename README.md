@@ -100,9 +100,16 @@ To create a new release:
 
 1. Run: `npm run release`
 
-   - This will bump the version in package.json
-   - Update CHANGELOG.md
+   - This will prompt you to select a release type (patch, minor, or major)
+   - Update the version in package.json according to semantic versioning
+   - Update CHANGELOG.md with the changes since the last release
    - Create a git tag
+
+   You can also directly specify the release type:
+
+   - `npm run release:patch` - for bug fixes (1.0.0 → 1.0.1)
+   - `npm run release:minor` - for new features (1.0.0 → 1.1.0)
+   - `npm run release:major` - for breaking changes (1.0.0 → 2.0.0)
 
 2. Push to GitHub: `git push --follow-tags origin main`
 
@@ -122,6 +129,7 @@ typescript-boilerplate/
 │   └── pre-commit       # Pre-commit hook for formatting and linting
 ├── scripts/             # Utility scripts
 │   ├── extract-latest-release.js  # Script for GitHub releases
+│   ├── release.js                 # Interactive release script
 │   └── setup-automation.js        # Setup script for existing projects
 ├── src/                 # Source code
 │   ├── index.ts         # Main entry point
@@ -146,7 +154,10 @@ typescript-boilerplate/
 - `npm run lint`: Check for linting issues
 - `npm run lint:fix`: Fix linting issues
 - `npm run format`: Format code using prettier
-- `npm run release`: Create a new release (bumps version, updates changelog)
+- `npm run release`: Create a new release with interactive type selection
+- `npm run release:patch`: Create a patch release (for bug fixes)
+- `npm run release:minor`: Create a minor release (for new features)
+- `npm run release:major`: Create a major release (for breaking changes)
 - `npm run publish:github`: Create a GitHub release
 
 ## Customization

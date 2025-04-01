@@ -13,7 +13,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "format": "prettier --write .",
-    "release": "standard-version",
+    "release": "node scripts/release.js",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
     "publish:github": "node scripts/extract-latest-release.js && gh release create v$(node -p \"require('./package.json').version\") -F LATEST_RELEASE.md"
   },
   "keywords": [
