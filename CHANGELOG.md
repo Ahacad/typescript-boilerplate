@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.2](https://github.com/Ahacad/typescript-boilerplate/compare/v0.1.1...v0.1.2) (2025-04-01)
+
+### Chores
+
+- update publish:github script in package.json ([b90de5f](https://github.com/Ahacad/typescript-boilerplate/commit/b90de5f973b1cafa756889d88f76d6c3a3d6126f))
+
 ### 0.1.1 (2025-04-01)
 
 ### Features
