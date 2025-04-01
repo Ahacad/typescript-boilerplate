@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create release
+        run: |
+          npx standard-version --release-as ${{ github.event.inputs.release_type }}
+
+      - name: Push changes
+        run: |
+          git push --follow-tags origin main
+
+      - name: Create GitHub Release
+        run: npm run publish:github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
