@@ -21,13 +21,23 @@ const HUSKY_DIR = path.join(SOURCE_DIR, '.husky');
 const GITHUB_DIR = path.join(SOURCE_DIR, '.github');
 const SCRIPTS_DIR = path.join(SOURCE_DIR, 'scripts');
 
-// Files to copy
-const FILES_TO_COPY = [
-  { src: '.versionrc.json', dest: '.versionrc.json' },
-  { src: 'commitlint.config.js', dest: 'commitlint.config.js' },
-  { src: 'scripts/extract-latest-release.js', dest: 'scripts/extract-latest-release.js' },
-  { src: '.prettierrc', dest: '.prettierrc' },
-];
+// Define explicit mapping between features and files
+const FEATURE_FILES_MAPPING = {
+  prettier: [{ src: '.prettierrc', dest: '.prettierrc' }],
+  husky: [
+    { src: 'commitlint.config.js', dest: 'commitlint.config.js' },
+    { src: '.husky/pre-commit', dest: '.husky/pre-commit' },
+  ],
+  versioning: [
+    { src: '.versionrc.json', dest: '.versionrc.json' },
+    { src: 'scripts/extract-latest-release.js', dest: 'scripts/extract-latest-release.js' },
+    { src: 'scripts/release.js', dest: 'scripts/release.js' },
+  ],
+  githubActions: [
+    { src: '.github/workflows/ci.yml', dest: '.github/workflows/ci.yml' },
+    { src: '.github/workflows/release.yml', dest: '.github/workflows/release.yml' },
+  ],
+};
 
 // Ask questions
 async function askQuestion(question) {
@@ -56,31 +66,37 @@ async function setup() {
   const setupVersioning = await askQuestion('Setup conventional version bumping? (Y/n): ');
   const setupGithubActions = await askQuestion('Setup GitHub Actions workflows? (Y/n): ');
 
+  // Define features and their setup status
+  const features = [
+    { name: 'prettier', setup: setupPrettier.toLowerCase() !== 'n' },
+    { name: 'husky', setup: setupHusky.toLowerCase() !== 'n' },
+    { name: 'versioning', setup: setupVersioning.toLowerCase() !== 'n' },
+    { name: 'githubActions', setup: setupGithubActions.toLowerCase() !== 'n' },
+  ];
+
   // Create directories if they don't exist
   if (!fs.existsSync('scripts')) {
     fs.mkdirSync('scripts', { recursive: true });
   }
 
-  // Copy files
-  for (const file of FILES_TO_COPY) {
-    if (
-      (file.src.includes('version') && setupVersioning.toLowerCase() !== 'n') ||
-      (file.src.includes('commit') && setupHusky.toLowerCase() !== 'n') ||
-      (file.src.includes('extract-latest-release') && setupVersioning.toLowerCase() !== 'n') ||
-      (file.src.includes('prettier') && setupPrettier.toLowerCase() !== 'n')
-    ) {
-      const srcPath = path.join(SOURCE_DIR, file.src);
-      const destPath = path.join(process.cwd(), file.dest);
+  // Copy files based on selected features
+  for (const feature of features) {
+    if (feature.setup) {
+      const filesToCopy = FEATURE_FILES_MAPPING[feature.name];
+      for (const file of filesToCopy) {
+        const srcPath = path.join(SOURCE_DIR, file.src);
+        const destPath = path.join(process.cwd(), file.dest);
 
-      // Create directory if it doesn't exist
-      const destDir = path.dirname(destPath);
-      if (!fs.existsSync(destDir)) {
-        fs.mkdirSync(destDir, { recursive: true });
+        // Create directory if it doesn't exist
+        const destDir = path.dirname(destPath);
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+
+        // Copy file
+        fs.copyFileSync(srcPath, destPath);
+        console.log(`Copied ${file.src} to ${file.dest}`);
       }
-
-      // Copy file
-      fs.copyFileSync(srcPath, destPath);
-      console.log(`Copied ${file.src} to ${file.dest}`);
     }
   }
 
@@ -122,23 +138,13 @@ async function setup() {
     // Set up husky
     console.log('Setting up husky...');
     execSync('npx husky init', { stdio: 'inherit' });
-
-    // Copy pre-commit hook
-    fs.copyFileSync(
-      path.join(HUSKY_DIR, 'pre-commit'),
-      path.join(process.cwd(), '.husky', 'pre-commit')
-    );
-    console.log('Copied pre-commit hook');
   }
 
   // Setup versioning
   if (setupVersioning.toLowerCase() !== 'n') {
-    // Copy release.js script
-    const srcReleasePath = path.join(SOURCE_DIR, 'scripts', 'release.js');
+    // Make release.js executable
     const destReleasePath = path.join(process.cwd(), 'scripts', 'release.js');
-    fs.copyFileSync(srcReleasePath, destReleasePath);
     fs.chmodSync(destReleasePath, '755'); // Make executable
-    console.log('Copied release.js script');
 
     // Add standard-version to devDependencies if not already present
     if (!packageJson.devDependencies?.['standard-version']) {
@@ -172,28 +178,6 @@ async function setup() {
 
     fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
     console.log('Added release scripts to package.json');
-  }
-
-  // Setup GitHub Actions
-  if (setupGithubActions.toLowerCase() !== 'n') {
-    // Create .github/workflows directory if it doesn't exist
-    const workflowsDir = path.join(process.cwd(), '.github', 'workflows');
-    if (!fs.existsSync(workflowsDir)) {
-      fs.mkdirSync(workflowsDir, { recursive: true });
-    }
-
-    // Copy GitHub workflows
-    fs.copyFileSync(
-      path.join(GITHUB_DIR, 'workflows', 'release.yml'),
-      path.join(workflowsDir, 'release.yml')
-    );
-
-    fs.copyFileSync(
-      path.join(GITHUB_DIR, 'workflows', 'ci.yml'),
-      path.join(workflowsDir, 'ci.yml')
-    );
-
-    console.log('Copied GitHub Actions workflows');
   }
 
   console.log('\nSetup complete! The following features were installed:');
